@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - football_pg_data:/var/lib/postgresql/data
+      - football_db_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d football_analytics"]
@@ -19,4 +19,4 @@ services:
       retries: 10
 
 volumes:
-  football_pg_data:
+  football_db_data:
