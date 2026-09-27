@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    container_name: football-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: football_analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - football_pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d football_analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  football_pg_data:
