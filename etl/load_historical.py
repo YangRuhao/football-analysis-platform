@@ -124,11 +124,19 @@ COLUMN_RENAME = {
 # are confirmed exact duplicates of columns already in COLUMN_RENAME.
 DROP_COLUMNS = ["rk", "carries_prgc", "Goals Scored"]
 
-# Required columns that must be present in the CSV file
+# These are the columns required to construct the player-season base row.
+# Duplicate and optional statistic columns are validated only when present,
+# then dropped or loaded into their statistic group tables as applicable.
 REQUIRED_COLUMNS = {
-    "player", "nation", "pos", "squad", "comp", "age", "born",
-    "Matches Played", "Avg Mins per Match", "Goals", "Goals Scored",
-    "Progressive Carries", "carries_prgc",
+    "player",
+    "nation",
+    "pos",
+    "squad",
+    "comp",
+    "age",
+    "born",
+    "Matches Played",
+    "Avg Mins per Match",
 }
 
 ATTACKING_COLS = [
@@ -186,12 +194,11 @@ def load_and_clean_csv(path: str) -> pd.DataFrame:
     # (e.g. 'Loïs' -> 'LoÃ¯s') without raising an error, so this isn't
     # optional or just documentation.
     df = pd.read_csv(path, encoding="utf-8")
-    
-    # Validate that all required columns are present
+
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(f"missing required columns: {', '.join(sorted(missing))}")
-    
+
     df = df.drop(columns=[c for c in DROP_COLUMNS if c in df.columns])
     df = df.rename(columns=COLUMN_RENAME)
     df["season_label"] = season_label_from_filename(path)
@@ -254,9 +261,8 @@ def load_season_file(cur, path, caches, dry_run=False):
     inserted, skipped = 0, 0
     for row_number, (_, row) in enumerate(df.iterrows(), start=1):
         savepoint = f"row_{row_number}"
-        
         cur.execute(f"SAVEPOINT {savepoint}")
-        
+
         try:
             league_id = get_or_create_id(
                 cur,
@@ -266,7 +272,6 @@ def load_season_file(cur, path, caches, dry_run=False):
                 {"league_name": row["league_name"]},
                 caches["leagues"],
             )
-
             team_id = get_or_create_id(
                 cur,
                 "teams",
@@ -275,7 +280,6 @@ def load_season_file(cur, path, caches, dry_run=False):
                 {"team_name": row["team_name"]},
                 caches["teams"],
             )
-
             player_id = get_or_create_id(
                 cur,
                 "players",
@@ -309,24 +313,20 @@ def load_season_file(cur, path, caches, dry_run=False):
                     int(row["minutes_played"]),
                 ),
             )
-
             result = cur.fetchone()
 
             if result is None:
-                # Already loaded. No stat groups need to be inserted.
                 skipped += 1
                 cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                 continue
-            
+
             stat_id = result[0]
-            
             for table, columns in STAT_GROUP_TABLES.items():
                 insert_stat_group(cur, table, stat_id, row, columns)
 
-            # Release only after the entire row has succeeded.
             cur.execute(f"RELEASE SAVEPOINT {savepoint}")
             inserted += 1
-        
+
         except Exception:
             logger.exception(
                 "Failed on row %d for player=%s season=%s; rolling back row",
@@ -334,12 +334,8 @@ def load_season_file(cur, path, caches, dry_run=False):
                 row.get("player_name"),
                 season_label,
             )
-
-            # Undo everything performed by this row while keeping
-            # the outer ETL transaction usable.
             cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
             cur.execute(f"RELEASE SAVEPOINT {savepoint}")
-
             skipped += 1
 
     verb = "would insert" if dry_run else "inserted"
@@ -353,9 +349,9 @@ def load_season_file(cur, path, caches, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR,
-                         help="Directory containing the cleaned_*.csv files")
+                        help="Directory containing the cleaned_*.csv files")
     parser.add_argument("--dry-run", action="store_true",
-                         help="Parse and validate everything but roll back instead of committing")
+                        help="Parse and validate everything but roll back instead of committing")
     args = parser.parse_args()
 
     csv_files = sorted(glob.glob(os.path.join(args.data_dir, "cleaned_*.csv")))
@@ -388,12 +384,6 @@ def main():
                 "ETL complete - inserted %d rows, skipped %d, across %d seasons.",
                 total_inserted, total_skipped, len(csv_files),
             )
-            # mv_player_season_full is a snapshot, not a live view — it does
-            # NOT update on its own when the base tables change. Refreshing
-            # it here means the API never serves stale/empty results after
-            # a load, without relying on remembering to do it by hand.
-            # REFRESH is its own transaction (can't run inside the one we
-            # just committed), so it needs its own connection autocommit block.
             conn.autocommit = True
             with conn.cursor() as cur:
                 logger.info("Refreshing mv_player_season_full...")
