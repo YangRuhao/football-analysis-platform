@@ -39,7 +39,7 @@ ALLOWED_TABLES_BY_METRIC = {
 def get_leaderboard(
     season: str = Query(..., pattern=r"^\d{4}-\d{4}$"),
     metric: str = Query(...),
-    position: Optional[str] = Query(None, min_length=2, max_length=2, pattern=r"^(DF|MF|FW|GK)$"),
+    position: Optional[str] = Query(None, min_length=2, max_length=2, pattern=r"^(DF|MF|FW|GK)$", description="Valid positions: DF, MF, FW, GK"),
     min_minutes: int = Query(900, ge=0, le=50000),
     limit: int = Query(50, ge=1, le=100),
 ):
