@@ -309,8 +309,9 @@ def load_season_file(cur, path, caches, dry_run=False):
             
             for table, columns in STAT_GROUP_TABLES.items():
                 insert_stat_group(cur, table, stat_id, row, columns)
-                
-                cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+
+            # Release only after the entire row has succeeded.
+            cur.execute(f"RELEASE SAVEPOINT {savepoint}")
             inserted += 1
         
         except Exception:
