@@ -14,7 +14,7 @@ class PlayerSeasonStats(BaseModel):
     
     player_id: int
     player_name: str
-    season_label: str
+    season_label: Optional[str] = None
     stat_id: Optional[int] = None
     nation: Optional[str] = None
     born: Optional[int] = None
@@ -43,7 +43,7 @@ class PlayerSeasonStats(BaseModel):
     goals_per_shot: Optional[float] = None
     goals_per_shot_on_target: Optional[float] = None
     shot_creating_actions_p90: Optional[float] = None
-    goal_creating_actions_p90: Optional[float] = None                                                                                                                                               
+    goal_creating_actions_p90: Optional[float] = None                                                                                                                                              
     # Passing
     progressive_passes: Optional[int] = None
     passes_completed: Optional[int] = None
