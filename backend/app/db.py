@@ -37,9 +37,9 @@ def close_pool():
 
 def check_database():
     with get_cursor() as cur:
-        cur.execute("SELECT 1")
-        return cur.fetchone()[0] == 1
-
+        cur.execute("SELECT 1 AS health_check")
+        row = cur.fetchone()
+        return row["health_check"] == 1
 
 @contextmanager
 def get_cursor():

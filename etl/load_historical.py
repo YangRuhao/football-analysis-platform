@@ -239,18 +239,35 @@ def load_season_file(cur, path, caches, dry_run=False):
     )
 
     inserted, skipped = 0, 0
-    for _, row in df.iterrows():
+    for row_number, (_, row) in enumerate(df.iterrows(), start=1):
+        savepoint = f"row_{row_number}"
+        
+        cur.execute(f"SAVEPOINT {savepoint}")
+        
         try:
             league_id = get_or_create_id(
-                cur, "leagues", "league_id", ["league_name"],
-                {"league_name": row["league_name"]}, caches["leagues"],
+                cur,
+                "leagues",
+                "league_id",
+                ["league_name"],
+                {"league_name": row["league_name"]},
+                caches["leagues"],
             )
+
             team_id = get_or_create_id(
-                cur, "teams", "team_id", ["team_name"],
-                {"team_name": row["team_name"]}, caches["teams"],
+                cur,
+                "teams",
+                "team_id",
+                ["team_name"],
+                {"team_name": row["team_name"]},
+                caches["teams"],
             )
+
             player_id = get_or_create_id(
-                cur, "players", "player_id", ["player_name", "born"],
+                cur,
+                "players",
+                "player_id",
+                ["player_name", "born"],
                 {
                     "player_name": row["player_name"],
                     "nation": row["nation"],
@@ -263,33 +280,52 @@ def load_season_file(cur, path, caches, dry_run=False):
                 """
                 INSERT INTO player_season_stats
                     (player_id, team_id, season_id, league_id, position,
-                     age, matches_played, minutes_played)
+                    age, matches_played, minutes_played)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (player_id, team_id, season_id) DO NOTHING
                 RETURNING stat_id
                 """,
                 (
-                    player_id, team_id, season_id, league_id, row["position"],
-                    int(row["age"]), int(row["matches_played"]),
+                    player_id,
+                    team_id,
+                    season_id,
+                    league_id,
+                    row["position"],
+                    int(row["age"]),
+                    int(row["matches_played"]),
                     int(row["minutes_played"]),
                 ),
             )
-            result = cur.fetchone()
-            if result is None:
-                # Already loaded (e.g. re-running the script) - skip stat groups too.
-                skipped += 1
-                continue
-            stat_id = result[0]
 
+            result = cur.fetchone()
+
+            if result is None:
+                # Already loaded. No stat groups need to be inserted.
+                skipped += 1
+                cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                continue
+            
+            stat_id = result[0]
+            
             for table, columns in STAT_GROUP_TABLES.items():
                 insert_stat_group(cur, table, stat_id, row, columns)
-
+                
+                cur.execute(f"RELEASE SAVEPOINT {savepoint}")
             inserted += 1
+        
         except Exception:
             logger.exception(
-                "Failed on row for player=%s season=%s",
-                row.get("player_name"), season_label,
+                "Failed on row %d for player=%s season=%s; rolling back row",
+                row_number,
+                row.get("player_name"),
+                season_label,
             )
+
+            # Undo everything performed by this row while keeping
+            # the outer ETL transaction usable.
+            cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+
             skipped += 1
 
     verb = "would insert" if dry_run else "inserted"
