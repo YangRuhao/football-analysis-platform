@@ -124,6 +124,13 @@ COLUMN_RENAME = {
 # are confirmed exact duplicates of columns already in COLUMN_RENAME.
 DROP_COLUMNS = ["rk", "carries_prgc", "Goals Scored"]
 
+# Required columns that must be present in the CSV file
+REQUIRED_COLUMNS = {
+    "player", "nation", "pos", "squad", "comp", "age", "born",
+    "Matches Played", "Avg Mins per Match", "Goals", "Goals Scored",
+    "Progressive Carries", "carries_prgc",
+}
+
 ATTACKING_COLS = [
     "goals", "assists", "goals_and_assists", "non_penalty_goals",
     "penalty_kicks_made", "xg", "npxg", "goals_p90", "assists_p90",
@@ -179,6 +186,12 @@ def load_and_clean_csv(path: str) -> pd.DataFrame:
     # (e.g. 'Loïs' -> 'LoÃ¯s') without raising an error, so this isn't
     # optional or just documentation.
     df = pd.read_csv(path, encoding="utf-8")
+    
+    # Validate that all required columns are present
+    missing = REQUIRED_COLUMNS - set(df.columns)
+    if missing:
+        raise ValueError(f"missing required columns: {', '.join(sorted(missing))}")
+    
     df = df.drop(columns=[c for c in DROP_COLUMNS if c in df.columns])
     df = df.rename(columns=COLUMN_RENAME)
     df["season_label"] = season_label_from_filename(path)
