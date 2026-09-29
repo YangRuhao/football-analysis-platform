@@ -138,12 +138,11 @@ def test_compare_reads_postgres(client, seeded_db):
         "/compare",
         params=[
             ("player_ids", seeded_db["player_id"]),
-            ("player_ids", seeded_db["player_id"]),
+            ("player_ids", 999999),
             ("season", "2023-2024"),
         ],
     )
-    # Duplicate IDs are deliberately rejected by the API.
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 def test_leaderboard_reads_postgres(client, seeded_db):
