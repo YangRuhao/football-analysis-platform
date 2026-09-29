@@ -50,8 +50,8 @@ DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
     "port": os.environ.get("DB_PORT", "5432"),
     "dbname": os.environ.get("DB_NAME", "football_analytics"),
-    "user": os.environ.get("DB_USER", "postgres"),
-    "password": os.environ.get("DB_PASSWORD", "postgres"),
+    "user": os.environ.get("DB_USER", "football_app"),
+    "password": os.environ.get("DB_PASSWORD"),
 }
 
 # Raw source column name -> our schema's column name.
@@ -360,6 +360,9 @@ def main():
         logger.error("No CSV files found in %s", args.data_dir)
         return
     logger.info("Found %d season files in %s", len(csv_files), args.data_dir)
+
+    if not DB_CONFIG["password"]:
+        raise RuntimeError("DB_PASSWORD must be set; refusing to use an insecure default password")
 
     conn = psycopg2.connect(**DB_CONFIG)
     conn.autocommit = False
