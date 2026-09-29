@@ -18,9 +18,11 @@ import streamlit as st
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from api_client import APIError, compare_players, search_players  # noqa: E402
+from ui import apply_global_styles, page_header  # noqa: E402
 
 st.set_page_config(page_title="Compare Players", page_icon="📊", layout="wide")
-st.title("📊 Compare Players")
+apply_global_styles()
+page_header("Player analysis", "Compare Players", "Build a side-by-side view of 2 to 6 players for a selected season.")
 
 METRIC_GROUPS = {
     "Attacking": ["goals", "assists", "xg", "npxg", "shots_p90", "shot_creating_actions_p90"],
