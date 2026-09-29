@@ -21,7 +21,8 @@ CREATE TABLE seasons (
     -- xA/xAG isn't present anywhere in it. Kept as a flag (not hardcoded
     -- logic) so a future data source that does include xA doesn't require
     -- a schema change.
-    has_xa_data    BOOLEAN NOT NULL DEFAULT FALSE
+    has_xa_data    BOOLEAN NOT NULL DEFAULT FALSE,
+    CHECK (start_year BETWEEN 1900 AND 2100)
 );
 
 CREATE TABLE teams (
@@ -34,7 +35,8 @@ CREATE TABLE players (
     player_name   VARCHAR(150) NOT NULL,
     nation        VARCHAR(50),
     born          SMALLINT,
-    UNIQUE (player_name, born)   -- dedupe key across seasons/files
+    UNIQUE (player_name, born),   -- dedupe key across seasons/files
+    CHECK (born IS NULL OR born BETWEEN 1900 AND 2100)
 );
 
 -- ===================== Core fact table =====================
@@ -53,7 +55,10 @@ CREATE TABLE player_season_stats (
     matches_played   SMALLINT,
     minutes_played   INT,             -- renamed from the source's mislabeled 'Avg Mins per Match'
     nineties         NUMERIC(6,2) GENERATED ALWAYS AS (minutes_played / 90.0) STORED,
-    UNIQUE (player_id, team_id, season_id)
+    UNIQUE (player_id, team_id, season_id),
+    CHECK (minutes_played >= 0),
+    CHECK (matches_played >= 0),
+    CHECK (age IS NULL OR age BETWEEN 0 AND 100)
 );
 
 CREATE INDEX idx_pss_player   ON player_season_stats(player_id);
@@ -82,6 +87,8 @@ CREATE TABLE player_season_attacking (
     goals_per_shot_on_target   NUMERIC(4,2),
     shot_creating_actions_p90  NUMERIC(4,2),
     goal_creating_actions_p90  NUMERIC(4,2)
+,
+    CHECK (shots_on_target_pct IS NULL OR shots_on_target_pct BETWEEN 0 AND 100)
 );
 
 -- ===================== Passing =====================
@@ -99,6 +106,11 @@ CREATE TABLE player_season_passing (
     key_passes                  SMALLINT,
     passes_into_final_third     SMALLINT,   -- source column '1/3'
     passes_into_penalty_area    SMALLINT
+,
+    CHECK (pass_completion_pct IS NULL OR pass_completion_pct BETWEEN 0 AND 100),
+    CHECK (short_pass_completion_pct IS NULL OR short_pass_completion_pct BETWEEN 0 AND 100),
+    CHECK (medium_pass_completion_pct IS NULL OR medium_pass_completion_pct BETWEEN 0 AND 100),
+    CHECK (long_pass_completion_pct IS NULL OR long_pass_completion_pct BETWEEN 0 AND 100)
 );
 
 -- ===================== Possession / carrying =====================
@@ -113,6 +125,8 @@ CREATE TABLE player_season_possession (
     carries_into_penalty_area   SMALLINT,
     possessions_lost            SMALLINT,
     touches_def_penalty_area    SMALLINT    -- only zone-specific touches available in source, no total touches
+,
+    CHECK (take_ons_successful_pct IS NULL OR take_ons_successful_pct BETWEEN 0 AND 100)
 );
 
 -- ===================== Defense =====================
@@ -128,6 +142,9 @@ CREATE TABLE player_season_defense (
     clearances             SMALLINT,
     errors                 SMALLINT,
     aerial_duels_won_pct   NUMERIC(5,2)
+,
+    CHECK (dribbles_tackled_pct IS NULL OR dribbles_tackled_pct BETWEEN 0 AND 100),
+    CHECK (aerial_duels_won_pct IS NULL OR aerial_duels_won_pct BETWEEN 0 AND 100)
 );
 
 -- ===================== Goalkeeping =====================
@@ -143,6 +160,10 @@ CREATE TABLE player_season_goalkeeping (
     clean_sheet_pct      NUMERIC(5,2),
     penalty_save_pct     NUMERIC(5,2),
     crosses_stopped      SMALLINT
+,
+    CHECK (save_pct IS NULL OR save_pct BETWEEN 0 AND 100),
+    CHECK (clean_sheet_pct IS NULL OR clean_sheet_pct BETWEEN 0 AND 100),
+    CHECK (penalty_save_pct IS NULL OR penalty_save_pct BETWEEN 0 AND 100)
 );
 
 -- ===================== Supporting tables =====================
