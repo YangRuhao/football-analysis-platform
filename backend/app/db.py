@@ -41,9 +41,11 @@ def check_database():
         row = cur.fetchone()
         return row["health_check"] == 1
 
+
 @contextmanager
 def get_cursor():
-    conn = _get_pool().getconn()
+    connection_pool = _get_pool()
+    conn = connection_pool.getconn()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             yield cur
@@ -52,4 +54,4 @@ def get_cursor():
         conn.rollback()
         raise
     finally:
-        _get_pool().putconn(conn)
+        connection_pool.putconn(conn)

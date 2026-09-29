@@ -50,8 +50,8 @@ DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
     "port": os.environ.get("DB_PORT", "5432"),
     "dbname": os.environ.get("DB_NAME", "football_analytics"),
-    "user": os.environ.get("DB_USER", "postgres"),
-    "password": os.environ.get("DB_PASSWORD", "postgres"),
+    "user": os.environ.get("DB_USER", "football_app"),
+    "password": os.environ.get("DB_PASSWORD"),
 }
 
 # Raw source column name -> our schema's column name.
@@ -214,23 +214,24 @@ def get_or_create_id(cur, table, id_col, unique_cols, row_values, cache):
     if key in cache:
         return cache[key]
 
-    where_clause = " AND ".join(f"{c} = %s" for c in unique_cols)
-    cur.execute(f"SELECT {id_col} FROM {table} WHERE {where_clause}", key)
-    existing = cur.fetchone()
-    if existing:
-        cache[key] = existing[0]
-        return existing[0]
-
+    # Use INSERT ... ON CONFLICT so concurrent ETL workers cannot race
+    # between SELECT and INSERT and create duplicate dimension rows.
     cols = list(row_values.keys())
     placeholders = ", ".join(["%s"] * len(cols))
+    conflict_cols = ", ".join(unique_cols)
     cur.execute(
-        f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders}) RETURNING {id_col}",
+        f"""
+        INSERT INTO {table} ({", ".join(cols)})
+        VALUES ({placeholders})
+        ON CONFLICT ({conflict_cols}) DO UPDATE
+            SET {unique_cols[0]} = EXCLUDED.{unique_cols[0]}
+        RETURNING {id_col}
+        """,
         [row_values[c] for c in cols],
     )
     new_id = cur.fetchone()[0]
     cache[key] = new_id
     return new_id
-
 
 def clean_value(v):
     """NaN -> None so psycopg2 writes a real SQL NULL instead of the
@@ -359,6 +360,9 @@ def main():
         logger.error("No CSV files found in %s", args.data_dir)
         return
     logger.info("Found %d season files in %s", len(csv_files), args.data_dir)
+
+    if not DB_CONFIG["password"]:
+        raise RuntimeError("DB_PASSWORD must be set; refusing to use an insecure default password")
 
     conn = psycopg2.connect(**DB_CONFIG)
     conn.autocommit = False
