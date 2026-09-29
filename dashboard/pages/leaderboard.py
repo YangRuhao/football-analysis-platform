@@ -13,9 +13,11 @@ import streamlit as st
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from api_client import APIError, LEADERBOARD_METRICS, POSITIONS, get_leaderboard  # noqa: E402
+from ui import apply_global_styles, page_header  # noqa: E402
 
 st.set_page_config(page_title="Leaderboard", page_icon="🏆", layout="wide")
-st.title("🏆 Leaderboard")
+apply_global_styles()
+page_header("League analysis", "Leaderboard", "Explore top performers by season, position and metric, with a minutes threshold to reduce small-sample noise.")
 
 col1, col2, col3 = st.columns(3)
 season = col1.text_input("Season", value="2023-2024")
