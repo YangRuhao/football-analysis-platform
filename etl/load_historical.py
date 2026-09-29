@@ -224,7 +224,7 @@ def get_or_create_id(cur, table, id_col, unique_cols, row_values, cache):
         INSERT INTO {table} ({", ".join(cols)})
         VALUES ({placeholders})
         ON CONFLICT ({conflict_cols}) DO UPDATE
-            SET {id_col} = EXCLUDED.{id_col}
+            SET {unique_cols[0]} = EXCLUDED.{unique_cols[0]}
         RETURNING {id_col}
         """,
         [row_values[c] for c in cols],
