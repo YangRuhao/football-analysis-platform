@@ -12,9 +12,11 @@ import streamlit as st
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from api_client import APIError, get_player_career, search_players  # noqa: E402
+from ui import apply_global_styles, page_header  # noqa: E402
 
 st.set_page_config(page_title="Player Profile", page_icon="🔍", layout="wide")
-st.title("🔍 Player Profile")
+apply_global_styles()
+page_header("Player analysis", "Player Profile", "Search a player and explore season-by-season performance, club stints and career trends.")
 
 STAT_GROUPS = {
     "Attacking": [
