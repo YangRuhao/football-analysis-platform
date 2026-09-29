@@ -1,5 +1,9 @@
 name: Phase 1 CI
 
+concurrency:
+  group: phase1-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: ["main"]
@@ -28,6 +32,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
+      - name: Validate Docker Compose
+        run: cp .env.example .env && docker compose config -q
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
