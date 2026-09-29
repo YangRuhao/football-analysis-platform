@@ -347,22 +347,20 @@ def load_season_file(cur, path, caches, dry_run=False):
     return inserted, skipped
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR,
-                        help="Directory containing the cleaned_*.csv files")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Parse and validate everything but roll back instead of committing")
-    args = parser.parse_args()
+def run_etl(data_dir, dry_run=False):
+    """Run the historical ETL and return inserted/skipped row counts.
 
-    csv_files = sorted(glob.glob(os.path.join(args.data_dir, "cleaned_*.csv")))
+    Dry-run executes the same parsing, validation, and database transaction
+    path as a real load, then rolls the transaction back instead of committing.
+    """
+    csv_files = sorted(glob.glob(os.path.join(data_dir, "cleaned_*.csv")))
     if not csv_files:
-        logger.error("No CSV files found in %s", args.data_dir)
-        return
-    logger.info("Found %d season files in %s", len(csv_files), args.data_dir)
+        raise FileNotFoundError(f"No CSV files found in {data_dir}")
 
     if not DB_CONFIG["password"]:
-        raise RuntimeError("DB_PASSWORD must be set; refusing to use an insecure default password")
+        raise RuntimeError(
+            "DB_PASSWORD must be set; refusing to use an insecure default password"
+        )
 
     conn = psycopg2.connect(**DB_CONFIG)
     conn.autocommit = False
@@ -372,14 +370,15 @@ def main():
     try:
         with conn.cursor() as cur:
             for path in csv_files:
-                ins, skip = load_season_file(cur, path, caches, dry_run=args.dry_run)
+                ins, skip = load_season_file(cur, path, caches, dry_run=dry_run)
                 total_inserted += ins
                 total_skipped += skip
 
-        if args.dry_run:
+        if dry_run:
             conn.rollback()
             logger.info(
-                "DRY RUN complete - rolled back. Would have inserted %d rows, skipped %d.",
+                "DRY RUN complete - transaction rolled back. "
+                "Would have inserted %d rows, skipped %d.",
                 total_inserted, total_skipped,
             )
         else:
@@ -393,6 +392,7 @@ def main():
                 logger.info("Refreshing mv_player_season_full...")
                 cur.execute("REFRESH MATERIALIZED VIEW mv_player_season_full")
             logger.info("Materialized view refreshed.")
+        return total_inserted, total_skipped
     except Exception:
         conn.rollback()
         logger.exception("ETL failed, transaction rolled back.")
@@ -401,5 +401,17 @@ def main():
         conn.close()
 
 
-if __name__ == "__main__":
-    main()
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR,
+                        help="Directory containing the cleaned_*.csv files")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Parse and validate everything but roll back instead of committing")
+    args = parser.parse_args()
+
+    logger.info(
+        "Found %d season files in %s",
+        len(glob.glob(os.path.join(args.data_dir, "cleaned_*.csv"))),
+        args.data_dir,
+    )
+    run_etl(args.data_dir, dry_run=args.dry_run)
