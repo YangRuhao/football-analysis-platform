@@ -214,23 +214,24 @@ def get_or_create_id(cur, table, id_col, unique_cols, row_values, cache):
     if key in cache:
         return cache[key]
 
-    where_clause = " AND ".join(f"{c} = %s" for c in unique_cols)
-    cur.execute(f"SELECT {id_col} FROM {table} WHERE {where_clause}", key)
-    existing = cur.fetchone()
-    if existing:
-        cache[key] = existing[0]
-        return existing[0]
-
+    # Use INSERT ... ON CONFLICT so concurrent ETL workers cannot race
+    # between SELECT and INSERT and create duplicate dimension rows.
     cols = list(row_values.keys())
     placeholders = ", ".join(["%s"] * len(cols))
+    conflict_cols = ", ".join(unique_cols)
     cur.execute(
-        f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders}) RETURNING {id_col}",
+        f"""
+        INSERT INTO {table} ({", ".join(cols)})
+        VALUES ({placeholders})
+        ON CONFLICT ({conflict_cols}) DO UPDATE
+            SET {id_col} = EXCLUDED.{id_col}
+        RETURNING {id_col}
+        """,
         [row_values[c] for c in cols],
     )
     new_id = cur.fetchone()[0]
     cache[key] = new_id
     return new_id
-
 
 def clean_value(v):
     """NaN -> None so psycopg2 writes a real SQL NULL instead of the
