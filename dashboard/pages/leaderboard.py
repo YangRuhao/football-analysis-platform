@@ -52,11 +52,11 @@ fig = px.bar(
     labels={"value": metric, "player_name": ""},
     height=max(400, 20 * len(df)),
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 st.dataframe(
     df[["player_name", "team_name", "league_name", "position", "minutes_played", "value"]]
     .rename(columns={"value": metric}),
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
 )

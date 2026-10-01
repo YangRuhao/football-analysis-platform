@@ -415,3 +415,6 @@ def main():
         args.data_dir,
     )
     run_etl(args.data_dir, dry_run=args.dry_run)
+
+if __name__ == "__main__":
+    main()

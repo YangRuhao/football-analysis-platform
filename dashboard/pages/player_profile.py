@@ -103,7 +103,7 @@ for _, row in season_rows.iterrows():
                 with tab:
                     values = {c: row[c] for c in cols_list if pd.notna(row.get(c))}
                     if values:
-                        st.dataframe(pd.Series(values, name="value"), use_container_width=True)
+                        st.dataframe(pd.Series(values, name="value"), width='stretch')
                     else:
                         st.caption("No data in this category for this stint.")
 
@@ -117,4 +117,4 @@ fig = px.line(
     trend_df, x="season_label", y=trend_metric, markers=True,
     title=f"{display_name} - {trend_metric} by season",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')

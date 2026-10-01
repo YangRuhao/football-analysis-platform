@@ -115,9 +115,9 @@ fig.update_layout(
     polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
     showlegend=True,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 st.divider()
 st.subheader("Full stats table (actual values)")
 display_cols = ["player_name", "team_name", "position", "minutes_played"] + metrics
-st.dataframe(df[display_cols].set_index("player_name"), use_container_width=True)
+st.dataframe(df[display_cols].set_index("player_name"), width='stretch')
