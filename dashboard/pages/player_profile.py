@@ -205,6 +205,6 @@ for _, row in season_rows.iterrows():
                     table = pd.DataFrame(
                         [{"Metric": k.replace("_", " ").title(), "Value": v} for k, v in values.items()]
                     )
-                    st.dataframe(table, hide_index=True, width="stretch")
+                    st.dataframe(table, hide_index=True, use_container_width=True)
                 else:
                     st.caption("No data in this category for this stint.")
