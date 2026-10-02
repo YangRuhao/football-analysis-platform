@@ -98,3 +98,42 @@ class LeaderboardEntry(BaseModel):
     position: Optional[str] = None
     minutes_played: Optional[int] = None
     metric: Optional[str] = None
+
+
+class ProfilePlayer(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    player_id: int
+    player_name: str
+    nation: Optional[str] = None
+    born: Optional[int] = None
+    age: Optional[int] = None
+    position: Optional[str] = None
+
+class ProfileSeason(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    season_label: str
+    minutes_played: int
+    matches_played: int
+    goals: int
+    assists: int
+    xg: Optional[float] = None
+    npxg: Optional[float] = None
+
+class ProfileComparison(BaseModel):
+    position: str
+    min_minutes: int
+    player_count: int
+
+class ProfileMetric(BaseModel):
+    key: str
+    label: str
+    value: float
+    percentile: float
+    direction: str
+    comparison_count: int
+
+class PlayerProfileResponse(BaseModel):
+    player: ProfilePlayer
+    season: ProfileSeason
+    comparison: ProfileComparison
+    metrics: List[ProfileMetric]
