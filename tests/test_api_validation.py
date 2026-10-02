@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from app.main import app
-from app.routers import compare, leaderboard, players
+from app.routers import compare, leaderboard, players, profile
 
 
 class FakeCursor:
@@ -60,4 +60,25 @@ def test_leaderboard_rejects_bad_position(monkeypatch):
 def test_player_search_rejects_short_name(monkeypatch):
     monkeypatch.setattr(players, "get_cursor", lambda: fake_cursor())
     response = TestClient(app).get("/players/search", params={"name": "A"})
+    assert response.status_code == 422
+
+
+def test_profile_rejects_bad_season(monkeypatch):
+    monkeypatch.setattr(profile, "get_cursor", lambda: fake_cursor())
+    response = TestClient(app).get("/players/1/profile/2023")
+    assert response.status_code == 422
+
+
+def test_profile_rejects_non_positive_player_id(monkeypatch):
+    monkeypatch.setattr(profile, "get_cursor", lambda: fake_cursor())
+    response = TestClient(app).get("/players/0/profile/2023-2024")
+    assert response.status_code == 422
+
+
+def test_profile_rejects_invalid_min_minutes(monkeypatch):
+    monkeypatch.setattr(profile, "get_cursor", lambda: fake_cursor())
+    response = TestClient(app).get(
+        "/players/1/profile/2023-2024",
+        params={"min_minutes": -1},
+    )
     assert response.status_code == 422
