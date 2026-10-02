@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import check_database, close_pool
-from app.routers import compare, leaderboard, players
+from app.routers import compare, leaderboard, players, profile
 
 
 def _cors_origins():
@@ -40,6 +40,7 @@ app.add_middleware(
 app.include_router(players.router)
 app.include_router(compare.router)
 app.include_router(leaderboard.router)
+app.include_router(profile.router)
 
 
 @app.get("/health", tags=["health"])
