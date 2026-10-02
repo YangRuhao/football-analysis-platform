@@ -63,6 +63,13 @@ def get_player_career(player_id: int) -> list[dict]:
 
 
 @st.cache_data(ttl=300)
+def get_player_profile(player_id, season_label, min_minutes=900):
+    return _get(
+        f"/players/{int(player_id)}/profile/{season_label}",
+        params={"min_minutes": min_minutes},
+    )
+
+
 def get_player_season(player_id: int, season_label: str) -> list[dict]:
     return _get(f"/players/{player_id}/seasons/{season_label}", {})
 
