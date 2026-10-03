@@ -1,8 +1,13 @@
 import os
 from contextlib import contextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
