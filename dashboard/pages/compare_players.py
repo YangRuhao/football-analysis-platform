@@ -166,11 +166,9 @@ cards = st.columns(len(df))
 for col, (_, row) in zip(cards, df.iterrows()):
     with col:
         st.markdown(
-            f"**{row['player_name']}**  
-"
+            f"**{row['player_name']}**  \\n"
             f"{row.get('position', '—')} · {int(row['minutes_played']):,} min"
-        )
-        st.metric("Goals", int(row.get("goals", 0)))
+        )        st.metric("Goals", int(row.get("goals", 0)))
         st.metric("Assists", int(row.get("assists", 0)))
         xg = row.get("xg")
         st.metric("xG", f"{float(xg):.1f}" if pd.notna(xg) else "—")
