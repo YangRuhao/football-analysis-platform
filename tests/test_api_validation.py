@@ -82,3 +82,11 @@ def test_profile_rejects_invalid_min_minutes(monkeypatch):
         params={"min_minutes": -1},
     )
     assert response.status_code == 422
+
+
+def test_compare_rejects_more_than_six_players(monkeypatch):
+    monkeypatch.setattr(compare, "get_cursor", lambda: fake_cursor())
+    params = [("player_ids", i) for i in range(1, 8)]
+    params.append(("season", "2023-2024"))
+    response = TestClient(app).get("/compare", params=params)
+    assert response.status_code == 422
