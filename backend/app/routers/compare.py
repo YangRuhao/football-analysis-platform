@@ -75,7 +75,8 @@ def compare_players(
                     SUM(CASE WHEN s.take_ons_successful_pct IS NOT NULL THEN COALESCE(s.take_ons_attempted, 0) * s.take_ons_successful_pct / 100.0 ELSE 0 END)::numeric AS successful_take_ons,
                     SUM(COALESCE(s.shot_creating_actions_p90, 0) * COALESCE(s.nineties, 0))::numeric AS sca_total,
                     SUM(COALESCE(s.goal_creating_actions_p90, 0) * COALESCE(s.nineties, 0))::numeric AS gca_total,
-                    MAX(s.aerial_duels_won_pct) AS aerial_duels_won_pct
+                    SUM(CASE WHEN s.aerial_duels_won_pct IS NOT NULL THEN s.aerial_duels_won_pct * COALESCE(s.minutes_played, 0) ELSE 0 END)::numeric AS aerial_pct_minutes_weighted,
+                    SUM(CASE WHEN s.aerial_duels_won_pct IS NOT NULL THEN COALESCE(s.minutes_played, 0) ELSE 0 END)::int AS aerial_pct_minutes
                 FROM stints s
                 GROUP BY s.player_id
             )
@@ -102,7 +103,8 @@ def compare_players(
                 CASE WHEN a.minutes_played > 0 THEN a.crosses_stopped * 90.0 / a.minutes_played END AS crosses_stopped_p90,
                 CASE WHEN a.passes_attempted > 0 THEN a.passes_completed * 100.0 / a.passes_attempted END AS pass_completion_pct,
                 CASE WHEN a.take_ons_attempted > 0 THEN a.successful_take_ons * 100.0 / a.take_ons_attempted END AS take_ons_successful_pct,
-                CASE WHEN a.saves + a.goals_against > 0 THEN a.saves * 100.0 / (a.saves + a.goals_against) END AS save_pct
+                CASE WHEN a.saves + a.goals_against > 0 THEN a.saves * 100.0 / (a.saves + a.goals_against) END AS save_pct,
+                CASE WHEN a.aerial_pct_minutes > 0 THEN a.aerial_pct_minutes_weighted / a.aerial_pct_minutes END AS aerial_duels_won_pct
             FROM aggregated a
             JOIN primary_stint p ON p.player_id = a.player_id
             ORDER BY array_position(%s, a.player_id)
