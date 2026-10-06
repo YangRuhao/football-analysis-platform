@@ -25,9 +25,64 @@ def compare_players(
         cur.execute(
             """
             WITH stints AS (
-                SELECT *
-                FROM mv_player_season_full
-                WHERE player_id = ANY(%s) AND season_label = %s
+                -- Comparison reads the normalized source tables directly rather
+                -- than the materialized dashboard view. This guarantees that a
+                -- comparison sees the latest committed player statistics even
+                -- if the materialized view has not been refreshed yet.
+                SELECT
+                    pss.player_id,
+                    pss.team_id,
+                    pss.season_id,
+                    pss.league_id,
+                    pss.position,
+                    pss.age,
+                    pss.matches_played,
+                    pss.minutes_played,
+                    p.player_name,
+                    p.nation,
+                    p.born,
+                    t.team_name,
+                    l.league_name,
+                    s.season_label,
+                    a.goals,
+                    a.assists,
+                    a.goals_and_assists,
+                    a.non_penalty_goals,
+                    a.penalty_kicks_made,
+                    a.xg,
+                    a.npxg,
+                    a.total_shots,
+                    a.shot_creating_actions_p90,
+                    a.goal_creating_actions_p90,
+                    ps.progressive_passes,
+                    ps.passes_completed,
+                    ps.passes_attempted,
+                    ps.key_passes,
+                    po.progressive_carries,
+                    po.take_ons_attempted,
+                    po.take_ons_successful_pct,
+                    d.tackles_attempted,
+                    d.tackles_won,
+                    d.interceptions,
+                    d.clearances,
+                    d.shots_blocked,
+                    d.passes_blocked,
+                    d.aerial_duels_won_pct,
+                    gk.saves,
+                    gk.goals_against,
+                    gk.clean_sheets,
+                    gk.crosses_stopped
+                FROM player_season_stats pss
+                JOIN players p ON p.player_id = pss.player_id
+                JOIN teams t ON t.team_id = pss.team_id
+                JOIN leagues l ON l.league_id = pss.league_id
+                JOIN seasons s ON s.season_id = pss.season_id
+                LEFT JOIN player_season_attacking a ON a.stat_id = pss.stat_id
+                LEFT JOIN player_season_passing ps ON ps.stat_id = pss.stat_id
+                LEFT JOIN player_season_possession po ON po.stat_id = pss.stat_id
+                LEFT JOIN player_season_defense d ON d.stat_id = pss.stat_id
+                LEFT JOIN player_season_goalkeeping gk ON gk.stat_id = pss.stat_id
+                WHERE pss.player_id = ANY(%s) AND s.season_label = %s
             ),
             primary_stint AS (
                 SELECT DISTINCT ON (player_id)
@@ -46,35 +101,35 @@ def compare_players(
                     MAX(s.nation) AS nation,
                     MAX(s.born) AS born,
                     MAX(s.season_label) AS season_label,
-                    SUM(COALESCE(s.matches_played, 0))::int AS matches_played,
-                    SUM(COALESCE(s.minutes_played, 0))::int AS minutes_played,
-                    SUM(COALESCE(s.goals, 0))::int AS goals,
-                    SUM(COALESCE(s.assists, 0))::int AS assists,
-                    SUM(COALESCE(s.goals_and_assists, 0))::int AS goals_and_assists,
-                    SUM(COALESCE(s.non_penalty_goals, 0))::int AS non_penalty_goals,
-                    SUM(COALESCE(s.penalty_kicks_made, 0))::int AS penalty_kicks_made,
-                    SUM(COALESCE(s.xg, 0))::numeric AS xg,
-                    SUM(COALESCE(s.npxg, 0))::numeric AS npxg,
-                    SUM(COALESCE(s.total_shots, 0))::int AS total_shots,
-                    SUM(COALESCE(s.progressive_passes, 0))::int AS progressive_passes,
-                    SUM(COALESCE(s.key_passes, 0))::int AS key_passes,
-                    SUM(COALESCE(s.passes_completed, 0))::int AS passes_completed,
-                    SUM(COALESCE(s.passes_attempted, 0))::int AS passes_attempted,
-                    SUM(COALESCE(s.progressive_carries, 0))::int AS progressive_carries,
-                    SUM(COALESCE(s.take_ons_attempted, 0))::int AS take_ons_attempted,
-                    SUM(COALESCE(s.tackles_attempted, 0))::int AS tackles_attempted,
-                    SUM(COALESCE(s.tackles_won, 0))::int AS tackles_won,
-                    SUM(COALESCE(s.interceptions, 0))::int AS interceptions,
-                    SUM(COALESCE(s.clearances, 0))::int AS clearances,
-                    SUM(COALESCE(s.shots_blocked, 0))::int AS shots_blocked,
-                    SUM(COALESCE(s.passes_blocked, 0))::int AS passes_blocked,
-                    SUM(COALESCE(s.saves, 0))::int AS saves,
-                    SUM(COALESCE(s.goals_against, 0))::int AS goals_against,
-                    SUM(COALESCE(s.clean_sheets, 0))::int AS clean_sheets,
-                    SUM(COALESCE(s.crosses_stopped, 0))::int AS crosses_stopped,
+                    COALESCE(SUM(s.matches_played), 0)::int AS matches_played,
+                    COALESCE(SUM(s.minutes_played), 0)::int AS minutes_played,
+                    COALESCE(SUM(s.goals), 0)::int AS goals,
+                    COALESCE(SUM(s.assists), 0)::int AS assists,
+                    COALESCE(SUM(s.goals_and_assists), 0)::int AS goals_and_assists,
+                    COALESCE(SUM(s.non_penalty_goals), 0)::int AS non_penalty_goals,
+                    COALESCE(SUM(s.penalty_kicks_made), 0)::int AS penalty_kicks_made,
+                    COALESCE(SUM(s.xg), 0)::numeric AS xg,
+                    COALESCE(SUM(s.npxg), 0)::numeric AS npxg,
+                    COALESCE(SUM(s.total_shots), 0)::int AS total_shots,
+                    COALESCE(SUM(s.progressive_passes), 0)::int AS progressive_passes,
+                    COALESCE(SUM(s.key_passes), 0)::int AS key_passes,
+                    COALESCE(SUM(s.passes_completed), 0)::int AS passes_completed,
+                    COALESCE(SUM(s.passes_attempted), 0)::int AS passes_attempted,
+                    COALESCE(SUM(s.progressive_carries), 0)::int AS progressive_carries,
+                    COALESCE(SUM(s.take_ons_attempted), 0)::int AS take_ons_attempted,
+                    COALESCE(SUM(s.tackles_attempted), 0)::int AS tackles_attempted,
+                    COALESCE(SUM(s.tackles_won), 0)::int AS tackles_won,
+                    COALESCE(SUM(s.interceptions), 0)::int AS interceptions,
+                    COALESCE(SUM(s.clearances), 0)::int AS clearances,
+                    COALESCE(SUM(s.shots_blocked), 0)::int AS shots_blocked,
+                    COALESCE(SUM(s.passes_blocked), 0)::int AS passes_blocked,
+                    COALESCE(SUM(s.saves), 0)::int AS saves,
+                    COALESCE(SUM(s.goals_against), 0)::int AS goals_against,
+                    COALESCE(SUM(s.clean_sheets), 0)::int AS clean_sheets,
+                    COALESCE(SUM(s.crosses_stopped), 0)::int AS crosses_stopped,
                     SUM(CASE WHEN s.take_ons_successful_pct IS NOT NULL THEN COALESCE(s.take_ons_attempted, 0) * s.take_ons_successful_pct / 100.0 ELSE 0 END)::numeric AS successful_take_ons,
-                    SUM(COALESCE(s.shot_creating_actions_p90, 0) * COALESCE(s.nineties, 0))::numeric AS sca_total,
-                    SUM(COALESCE(s.goal_creating_actions_p90, 0) * COALESCE(s.nineties, 0))::numeric AS gca_total,
+                    SUM(COALESCE(s.shot_creating_actions_p90, 0) * (COALESCE(s.minutes_played, 0) / 90.0))::numeric AS sca_total,
+                    SUM(COALESCE(s.goal_creating_actions_p90, 0) * (COALESCE(s.minutes_played, 0) / 90.0))::numeric AS gca_total,
                     SUM(CASE WHEN s.aerial_duels_won_pct IS NOT NULL THEN s.aerial_duels_won_pct * COALESCE(s.minutes_played, 0) ELSE 0 END)::numeric AS aerial_pct_minutes_weighted,
                     SUM(CASE WHEN s.aerial_duels_won_pct IS NOT NULL THEN COALESCE(s.minutes_played, 0) ELSE 0 END)::int AS aerial_pct_minutes
                 FROM stints s
