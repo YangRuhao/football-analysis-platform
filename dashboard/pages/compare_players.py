@@ -227,17 +227,40 @@ st.caption(
 )
 
 fig = go.Figure()
+
+# Distinct transparent fills and line styles keep overlapping player profiles
+# visible instead of allowing the last trace to hide the earlier one.
+radar_palette = [
+    ("#22c55e", "solid"),
+    ("#60a5fa", "dash"),
+    ("#f59e0b", "dot"),
+    ("#f472b6", "dashdot"),
+    ("#a78bfa", "longdash"),
+    ("#14b8a6", "longdashdot"),
+]
+
 for i, row in df.iterrows():
     values = [scaled[m][i] for m in available_metrics]
     labels = [METRIC_LABELS.get(m, m) for m in available_metrics]
+    hex_color, dash_style = radar_palette[i % len(radar_palette)]
+    rgb = tuple(int(hex_color[j:j + 2], 16) for j in (1, 3, 5))
+    fill_color = f"rgba({rgb[0]},{rgb[1]},{rgb[2]},0.16)"
+
     fig.add_trace(
         go.Scatterpolar(
             r=values + [values[0]],
             theta=labels + [labels[0]],
             fill="toself",
+            fillcolor=fill_color,
             name=row["player_name"],
-            opacity=0.55,
-            hovertemplate="%{theta}<br>Relative score: %{r:.0f}/100<extra></extra>",
+            opacity=1.0,
+            line=dict(color=hex_color, width=3, dash=dash_style),
+            marker=dict(size=7, color=hex_color),
+            hovertemplate=(
+                "<b>%{fullData.name}</b><br>"
+                "%{theta}<br>Relative score: %{r:.0f}/100"
+                "<extra></extra>"
+            ),
         )
     )
 
@@ -269,7 +292,7 @@ comparison_df = pd.DataFrame(comparison_rows)
 st.dataframe(
     comparison_df,
     hide_index=True,
-    width="stretch",
+    use_container_width=True,
     column_config={
         player["player_name"]: st.column_config.NumberColumn(
             player["player_name"],
@@ -302,4 +325,4 @@ detail_df = detail_df.rename(
         "npxg": "npxG",
     }
 )
-st.dataframe(detail_df, hide_index=True, width="stretch")
+st.dataframe(detail_df, hide_index=True, use_container_width=True)
