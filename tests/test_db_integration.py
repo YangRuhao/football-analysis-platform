@@ -144,6 +144,102 @@ def test_compare_reads_postgres(client, seeded_db):
     )
     assert response.status_code == 404
 
+def test_compare_aggregates_normalized_stat_tables(client, seeded_db, db_connection):
+    conn = db_connection
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO teams (team_name) VALUES ('Second Test FC') RETURNING team_id"
+        )
+        second_team_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            INSERT INTO players (player_name, nation, born)
+            VALUES ('Second Test Player', 'IE', 2001)
+            RETURNING player_id
+            """
+        )
+        second_player_id = cur.fetchone()[0]
+        cur.execute(
+            "SELECT season_id, league_id FROM seasons WHERE season_label = '2023-2024'"
+        )
+        season_id, league_id = cur.fetchone()
+        cur.execute(
+            """
+            INSERT INTO player_season_stats
+                (player_id, team_id, season_id, league_id, position, age,
+                 matches_played, minutes_played)
+            VALUES (%s, %s, %s, %s, 'FW', 22, 20, 1800)
+            RETURNING stat_id
+            """,
+            (second_player_id, second_team_id, season_id, league_id),
+        )
+        second_stat_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            INSERT INTO player_season_passing
+                (stat_id, progressive_passes, passes_completed, passes_attempted, key_passes)
+            VALUES (%s, 60, 600, 800, 30)
+            """,
+            (second_stat_id,),
+        )
+        cur.execute(
+            """
+            INSERT INTO player_season_possession
+                (stat_id, progressive_carries, take_ons_attempted, take_ons_successful_pct)
+            VALUES (%s, 45, 40, 50)
+            """,
+            (second_stat_id,),
+        )
+        cur.execute(
+            """
+            INSERT INTO player_season_passing
+                (stat_id, progressive_passes, passes_completed, passes_attempted, key_passes)
+            SELECT stat_id, 80, 700, 1000, 40
+            FROM player_season_stats
+            WHERE player_id = %s
+            """,
+            (seeded_db["player_id"],),
+        )
+        cur.execute(
+            """
+            INSERT INTO player_season_possession
+                (stat_id, progressive_carries, take_ons_attempted, take_ons_successful_pct)
+            SELECT stat_id, 30, 20, 75
+            FROM player_season_stats
+            WHERE player_id = %s
+            """,
+            (seeded_db["player_id"],),
+        )
+    conn.commit()
+
+    response = client.get(
+        "/compare",
+        params=[
+            ("player_ids", seeded_db["player_id"]),
+            ("player_ids", second_player_id),
+            ("season", "2023-2024"),
+        ],
+    )
+    assert response.status_code == 200
+
+    rows = {row["player_id"]: row for row in response.json()}
+    first = rows[seeded_db["player_id"]]
+    second = rows[second_player_id]
+
+    assert first["progressive_passes"] == 80
+    assert first["passes_completed"] == 700
+    assert first["passes_attempted"] == 1000
+    assert first["key_passes"] == 40
+    assert first["progressive_passes_p90"] == pytest.approx(3.0)
+    assert first["pass_completion_pct"] == pytest.approx(70.0)
+
+    assert second["progressive_passes"] == 60
+    assert second["passes_completed"] == 600
+    assert second["passes_attempted"] == 800
+    assert second["key_passes"] == 30
+    assert second["progressive_passes_p90"] == pytest.approx(3.0)
+    assert second["pass_completion_pct"] == pytest.approx(75.0)
+
 
 def test_leaderboard_reads_postgres(client, seeded_db):
     response = client.get(
