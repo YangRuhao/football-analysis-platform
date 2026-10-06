@@ -285,10 +285,26 @@ comparison_rows = []
 for metric in available_metrics:
     row = {"Metric": METRIC_LABELS.get(metric, metric)}
     for _, player in df.iterrows():
-        row[player["player_name"]] = player[metric]
+        # API/database numeric values can arrive as Decimal-like values or
+        # numeric strings (for example PostgreSQL values such as "0E-20").
+        # Normalize them before handing the DataFrame to Arrow/Streamlit.
+        row[player["player_name"]] = pd.to_numeric(
+            player[metric],
+            errors="coerce",
+        )
     comparison_rows.append(row)
 
 comparison_df = pd.DataFrame(comparison_rows)
+
+# Keep the metric column textual, while forcing every player column to a
+# consistent numeric dtype. This prevents PyArrow from seeing a mixed
+# object column containing floats, Decimal values, and numeric strings.
+for player_name in comparison_df.columns[1:]:
+    comparison_df[player_name] = pd.to_numeric(
+        comparison_df[player_name],
+        errors="coerce",
+    ).astype("float64")
+
 st.dataframe(
     comparison_df,
     hide_index=True,
