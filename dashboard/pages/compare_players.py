@@ -255,7 +255,7 @@ fig.update_layout(
     margin=dict(l=40, r=40, t=25, b=25),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
 )
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("#### Metric-by-metric comparison")
 comparison_rows = []
