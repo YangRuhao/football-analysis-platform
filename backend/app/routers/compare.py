@@ -1,5 +1,6 @@
 from typing import List
 import re
+from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -8,6 +9,14 @@ from app.schemas import PlayerSeasonStats
 
 router = APIRouter(prefix="/compare", tags=["compare"])
 SEASON_PATTERN = re.compile(r"^\d{4}-\d{4}$")
+
+
+def _json_compatible_row(row):
+    """Convert Decimal values to native floats so JSON responses contain numeric values."""
+    return {
+        key: float(value) if isinstance(value, Decimal) else value
+        for key, value in row.items()
+    }
 
 
 @router.get("", response_model=List[PlayerSeasonStats])
@@ -166,7 +175,7 @@ def compare_players(
             """,
             (unique_ids, season, unique_ids),
         )
-        rows = cur.fetchall()
+        rows = [_json_compatible_row(row) for row in cur.fetchall()]
 
     found_ids = {row["player_id"] for row in rows}
     missing = set(unique_ids) - found_ids
