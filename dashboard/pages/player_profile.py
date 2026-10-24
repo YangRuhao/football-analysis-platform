@@ -54,7 +54,11 @@ STAT_GROUPS = {
     ],
 }
 
-name = st.text_input("Search for a player", placeholder="e.g. Haaland, Bellingham, Yamal")
+name = st.text_input(
+    "Search for a player",
+    placeholder="e.g. Haaland, Bellingham, Yamal",
+    key="profile_player_search",
+)
 if not name or len(name) < 2:
     st.info("Type at least 2 characters to search.")
     st.stop()
