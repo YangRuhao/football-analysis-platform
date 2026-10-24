@@ -144,6 +144,7 @@ def test_compare_reads_postgres(client, seeded_db):
     )
     assert response.status_code == 404
 
+
 def test_compare_aggregates_normalized_stat_tables(client, seeded_db, db_connection):
     conn = db_connection
     with conn.cursor() as cur:
@@ -160,7 +161,13 @@ def test_compare_aggregates_normalized_stat_tables(client, seeded_db, db_connect
         )
         second_player_id = cur.fetchone()[0]
         cur.execute(
-            "SELECT season_id, league_id FROM seasons WHERE season_label = '2023-2024'"
+            """
+            SELECT season_id, league_id
+            FROM player_season_stats
+            WHERE player_id = %s
+            LIMIT 1
+            """,
+            (seeded_db["player_id"],),
         )
         season_id, league_id = cur.fetchone()
         cur.execute(
