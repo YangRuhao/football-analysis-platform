@@ -53,6 +53,7 @@ with help_col:
     st.caption("Search the player database and jump straight to their profile.")
 
 if player_query and len(player_query.strip()) >= 2:
+    search_failed = False
     try:
         matches = search_players(player_query.strip(), limit=8)
     except APIError as exc:
@@ -60,6 +61,7 @@ if player_query and len(player_query.strip()) >= 2:
         with st.expander("Technical details"):
             st.code(str(exc))
         matches = []
+        search_failed = True
     if matches:
         player_options = {
             f"{item['player_name']} · {item.get('nation') or 'Nation unavailable'} · born {item.get('born') or '—'}": item
@@ -70,7 +72,7 @@ if player_query and len(player_query.strip()) >= 2:
         if st.button("Open player profile", type="primary"):
             st.session_state["profile_player_search"] = selected_player["player_name"]
             st.switch_page("pages/player_profile.py")
-    elif not st.session_state.get("home_search_failed", False):
+    elif not search_failed:
         st.caption("No matching players found. Try a shorter name or check the spelling.")
 
 section_heading("Explore the platform")
